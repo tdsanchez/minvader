@@ -1,5 +1,8 @@
 # minvader
 
+<p align="center"><img src="mascot.jpg" width="300" alt="minvader mascot"></p>
+<p align="center"><em>May your files be with you.</em></p>
+
 A zero-dependency media server in C. Point it at any directory and browse your files — images, video, audio, documents — through a web UI in your browser. Runs on Mac, Windows, and Linux.
 
 minvader is the core of [PostMac](https://github.com/tdsanchez) — distilled from a full Go + Erlang/OTP media server stack into a single C binary under 2MB.
