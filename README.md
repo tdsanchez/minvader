@@ -35,7 +35,7 @@ The author recommends these browsers based on testing across vintage and modern 
 | macOS version | Browser |
 |---------------|---------|
 | 10.6 Snow Leopard | [Power Fox](https://github.com/nickcalyx/nickcalyx.github.io/wiki/PowerFox) |
-| 10.11 El Capitan – 10.15 Catalina | [Mommijii-Stable](https://nickcalyx.github.io/nickcalyx.github.io/) |
+| 10.11 El Capitan – 10.15 Catalina | [Momiji-Stable](https://github.com/aobaharuki2005/momiji-web-browser/releases) |
 | 11 Big Sur+ | [Waterfox](https://www.waterfox.net/) |
 
 Any browser should work — the UI is server-rendered HTML with minimal JS and no framework dependencies. It may run fine in browsers going back a decade or more.
