@@ -1,7 +1,7 @@
 /*
  * minvader — Pure C media server with SQLite warm start
  *
- * Based on minvader. Reads cache-*.db files written by cache-builder.
+ * Based on media-server-c. Reads cache-*.db files written by cache-builder.
  * Supports: --warm (SQLite cache), --stdin (pipe), --port, file serving,
  *           tag CRUD, gallery/viewer, sort, search.
  *
@@ -445,7 +445,7 @@ static void render_markdown(buf_t *out, const char *filepath) {
  */
 static int convert_via_textutil(buf_t *out, const char *filepath) {
     char tmppath[MAX_PATH_LEN];
-    snprintf(tmppath, sizeof(tmppath), "/tmp/minvader-conv-%d.html", getpid());
+    snprintf(tmppath, sizeof(tmppath), "/tmp/media-server-conv-%d.html", getpid());
 
     /* Escape single quotes for shell */
     char escaped_in[MAX_PATH_LEN * 2];
@@ -1258,7 +1258,7 @@ static void handle_gallery(int fd, const char *tag, const char *query_str) {
     buf_appends(&pg, "  <div class=\"sep\"></div>\n");
 
     /* Search */
-    buf_appends(&pg, "  <input class=\"search-box\" type=\"text\" id=\"searchbox\" placeholder=\"Search files...\" onkeydown=\"if(event.key==='Enter')doSearch()\">\n");
+    buf_appends(&pg, "  <input class=\"search-box\" type=\"text\" id=\"searchbox\" placeholder=\"Search filenames...\" onkeydown=\"if(event.key==='Enter')doSearch()\">\n");
 
     buf_appends(&pg, "</div>\n");
 
@@ -1276,7 +1276,7 @@ static void handle_gallery(int fd, const char *tag, const char *query_str) {
     buf_appends(&pg, "}\n");
     buf_appends(&pg, "function doSearch() {\n");
     buf_appends(&pg, "  var q = document.getElementById('searchbox').value.trim();\n");
-    buf_appends(&pg, "  if (q) window.location = '/tag/' + encodeURIComponent(q);\n");
+    buf_appends(&pg, "  if (q) window.location = '/search?q=' + encodeURIComponent(q);\n");
     buf_appends(&pg, "}\n");
     buf_appends(&pg, "function showModal(id) { document.getElementById(id).classList.add('show'); }\n");
     buf_appends(&pg, "function hideModal(id) { document.getElementById(id).classList.remove('show'); }\n");
@@ -2243,6 +2243,179 @@ static void handle_api_filelist(int fd, const char *query_str) {
     buf_free(&resp);
 }
 
+/* ── Page: /search — filename search results as gallery ────────────── */
+static void handle_search_page(int fd, const char *query_str) {
+    char q[MAX_PATH_LEN];
+    get_query_param(query_str, "q", q, sizeof(q));
+    if (!q[0]) { send_400(fd, "Missing query parameter 'q'"); return; }
+
+    char page_str[16], limit_str[16], sort_mode[32], reversed_str[16];
+    get_query_param(query_str, "page", page_str, sizeof(page_str));
+    get_query_param(query_str, "limit", limit_str, sizeof(limit_str));
+    get_query_param(query_str, "sort", sort_mode, sizeof(sort_mode));
+    get_query_param(query_str, "reversed", reversed_str, sizeof(reversed_str));
+
+    int page = atoi(page_str); if (page < 1) page = 1;
+    int limit = atoi(limit_str); if (limit <= 0) limit = PAGE_SIZE;
+    if (limit > 50000) limit = 50000;
+    int reversed = (strcmp(reversed_str, "true") == 0);
+
+    char q_lower[MAX_PATH_LEN];
+    strncpy(q_lower, q, sizeof(q_lower) - 1);
+    q_lower[sizeof(q_lower) - 1] = '\0';
+    for (char *p = q_lower; *p; p++) *p = tolower(*p);
+
+    int *indices = malloc(g_nfiles * sizeof(int));
+    int match_count = 0;
+    for (int i = 0; i < g_nfiles; i++) {
+        char name_lower[MAX_PATH_LEN];
+        strncpy(name_lower, g_files[i].name, sizeof(name_lower) - 1);
+        name_lower[sizeof(name_lower) - 1] = '\0';
+        for (char *p = name_lower; *p; p++) *p = tolower(*p);
+        if (strstr(name_lower, q_lower))
+            indices[match_count++] = i;
+    }
+
+    sort_indices(indices, match_count, sort_mode, reversed);
+
+    int total = match_count;
+    int actual_limit = (limit == -1) ? total : limit;
+    int total_pages = actual_limit > 0 ? (total + actual_limit - 1) / actual_limit : 1;
+    if (page > total_pages && total_pages > 0) page = total_pages;
+    int start = (page - 1) * actual_limit;
+    int end = start + actual_limit;
+    if (end > total) end = total;
+
+    buf_t pg;
+    buf_init(&pg);
+
+    buf_appends(&pg, "<!DOCTYPE html>\n<html><head><meta charset=\"utf-8\">\n");
+    buf_appends(&pg, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    buf_appends(&pg, "<title>Search: ");
+    html_escape(&pg, q);
+    buf_appends(&pg, "</title>\n<style>\n");
+    buf_appends(&pg, "* { box-sizing: border-box; margin: 0; padding: 0; }\n");
+    buf_appends(&pg, "body { background: #000; color: #fff; font-family: -apple-system, system-ui, sans-serif; }\n");
+    buf_appends(&pg, ".floating-header { position: fixed; top: 0; left: 0; right: 0; background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid #333; z-index: 999; }\n");
+    buf_appends(&pg, ".header-content { display: flex; justify-content: space-between; align-items: center; padding: 12px 24px; }\n");
+    buf_appends(&pg, ".header-left { display: flex; align-items: center; gap: 16px; flex: 1; }\n");
+    buf_appends(&pg, ".header-left a { color: #4da3ff; text-decoration: none; font-size: 14px; font-weight: 500; }\n");
+    buf_appends(&pg, ".header-left h1 { font-size: 16px; font-weight: 600; color: #e0e0e0; }\n");
+    buf_appends(&pg, ".file-count { color: #8b949e; font-size: 14px; }\n");
+    buf_appends(&pg, ".header-right { display: flex; align-items: center; gap: 10px; }\n");
+    buf_appends(&pg, ".pagination { display: flex; gap: 6px; align-items: center; font-size: 13px; color: #8b949e; }\n");
+    buf_appends(&pg, ".pagination a, .pagination span.pg { padding: 4px 8px; border: 1px solid #444; border-radius: 4px; color: #4da3ff; text-decoration: none; font-size: 12px; }\n");
+    buf_appends(&pg, ".pagination a:hover { background: #2a2a2a; }\n");
+    buf_appends(&pg, ".pagination .current { background: #388bfd; color: white; border-color: #388bfd; }\n");
+    buf_appends(&pg, ".toolbar { position: fixed; top: 52px; left: 0; right: 0; background: rgba(0,0,0,0.9); border-bottom: 1px solid #333; z-index: 998; padding: 8px 24px; display: flex; gap: 12px; align-items: center; }\n");
+    buf_appends(&pg, ".toolbar input { background: #2a2a2a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 6px 10px; font-size: 13px; width: 300px; }\n");
+    buf_appends(&pg, ".toolbar input:focus { border-color: #4da3ff; outline: none; }\n");
+    buf_appends(&pg, ".content { margin-top: 110px; padding: 16px 24px; }\n");
+    buf_appends(&pg, ".grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }\n");
+    buf_appends(&pg, ".item { position: relative; border-radius: 8px; overflow: hidden; background: #1e1e1e; border: 1px solid #333; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; }\n");
+    buf_appends(&pg, ".item:hover { transform: translateY(-4px); box-shadow: 0 4px 12px rgba(0,0,0,0.7); border-color: #555; }\n");
+    buf_appends(&pg, ".item a { display: block; text-decoration: none; color: inherit; }\n");
+    buf_appends(&pg, ".item img { width: 100%; height: 200px; object-fit: cover; display: block; }\n");
+    buf_appends(&pg, ".item .icon { width: 100%; height: 200px; display: flex; align-items: center; justify-content: center; font-size: 56px; background: #2a2a2a; color: #666; }\n");
+    buf_appends(&pg, ".item .info { padding: 10px 12px; }\n");
+    buf_appends(&pg, ".item .name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #e0e0e0; margin-bottom: 4px; }\n");
+    buf_appends(&pg, ".item .meta { font-size: 11px; color: #8b949e; }\n");
+    buf_appends(&pg, ".item .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }\n");
+    buf_appends(&pg, ".item .tag { display: inline-block; padding: 2px 6px; background: #777; color: #000; border-radius: 8px; font-size: 10px; }\n");
+    buf_appends(&pg, ".bottom-pagination { padding: 24px; display: flex; justify-content: center; align-items: center; gap: 12px; }\n");
+    buf_appends(&pg, "</style>\n</head>\n<body>\n");
+
+    /* Header */
+    buf_appends(&pg, "<div class=\"floating-header\">\n<div class=\"header-content\">\n");
+    buf_appends(&pg, "  <div class=\"header-left\">\n");
+    buf_appends(&pg, "    <a href=\"/\">&larr; Home</a>\n    <h1>Search: ");
+    html_escape(&pg, q);
+    buf_appends(&pg, "</h1>\n");
+    buf_appendf(&pg, "    <span class=\"file-count\">%d results</span>\n", total);
+    buf_appends(&pg, "  </div>\n");
+
+    /* Header pagination */
+    if (total_pages > 1) {
+        buf_appends(&pg, "  <div class=\"header-right\"><div class=\"pagination\">\n");
+        if (page > 1)
+            buf_appendf(&pg, "    <a href=\"/search?q=%s&page=%d&limit=%d&sort=%s&reversed=%s\">&larr;</a>\n",
+                        q, page - 1, limit, sort_mode, reversed ? "true" : "false");
+        buf_appendf(&pg, "    <span style=\"font-size:12px;\">%d-%d of %d</span>\n", start + 1, end, total);
+        if (page < total_pages)
+            buf_appendf(&pg, "    <a href=\"/search?q=%s&page=%d&limit=%d&sort=%s&reversed=%s\">&rarr;</a>\n",
+                        q, page + 1, limit, sort_mode, reversed ? "true" : "false");
+        buf_appends(&pg, "  </div></div>\n");
+    }
+    buf_appends(&pg, "</div>\n</div>\n");
+
+    /* Search bar (toolbar) */
+    buf_appends(&pg, "<div class=\"toolbar\">\n");
+    buf_appends(&pg, "  <input type=\"text\" id=\"searchbox\" placeholder=\"Search filenames...\" value=\"");
+    html_escape(&pg, q);
+    buf_appends(&pg, "\" onkeydown=\"if(event.key==='Enter'){var v=this.value.trim();if(v)window.location='/search?q='+encodeURIComponent(v);}\">\n");
+    buf_appends(&pg, "</div>\n");
+
+    /* Grid */
+    buf_appends(&pg, "<div class=\"content\">\n<div class=\"grid\">\n");
+    for (int i = start; i < end; i++) {
+        file_entry_t *f = &g_files[indices[i]];
+        buf_appends(&pg, "<div class=\"item\"><a href=\"/view/All?file=");
+        url_encode(&pg, f->path);
+        buf_appendf(&pg, "&sort=%s&reversed=%s&limit=%d", sort_mode, reversed ? "true" : "false", limit);
+        buf_appends(&pg, "\">\n");
+
+        if (is_image_ext(f->name)) {
+            buf_appends(&pg, "<img src=\"/file/");
+            url_encode(&pg, f->path);
+            buf_appends(&pg, "\" loading=\"lazy\">\n");
+        } else if (is_video_ext(f->name)) {
+            buf_appends(&pg, "<div class=\"icon\">\xf0\x9f\x8e\xac</div>\n");
+        } else {
+            buf_appends(&pg, "<div class=\"icon\">\xf0\x9f\x93\x84</div>\n");
+        }
+
+        buf_appends(&pg, "<div class=\"info\"><div class=\"name\">");
+        html_escape(&pg, f->name);
+        buf_appends(&pg, "</div>\n");
+
+        char size_str[32], date_str[64];
+        format_file_size(size_str, sizeof(size_str), f->size);
+        format_date(date_str, sizeof(date_str), f->birthtime);
+        buf_appendf(&pg, "<div class=\"meta\">%s &middot; %s</div>\n", size_str, date_str);
+
+        if (f->ntags > 0) {
+            buf_appends(&pg, "<div class=\"tags\">");
+            for (int t = 0; t < f->ntags && t < 5; t++) {
+                buf_appends(&pg, "<span class=\"tag\">");
+                html_escape(&pg, f->tags[t]);
+                buf_appends(&pg, "</span>");
+            }
+            if (f->ntags > 5) buf_appendf(&pg, "<span class=\"tag\">+%d</span>", f->ntags - 5);
+            buf_appends(&pg, "</div>\n");
+        }
+        buf_appends(&pg, "</div></a></div>\n");
+    }
+    buf_appends(&pg, "</div>\n");
+
+    /* Bottom pagination */
+    if (total_pages > 1) {
+        buf_appends(&pg, "<div class=\"bottom-pagination\"><div class=\"pagination\">\n");
+        for (int p = 1; p <= total_pages && p <= 30; p++) {
+            if (p == page)
+                buf_appendf(&pg, "<span class=\"current\">%d</span>\n", p);
+            else
+                buf_appendf(&pg, "<a href=\"/search?q=%s&page=%d&limit=%d&sort=%s&reversed=%s\">%d</a>\n",
+                            q, p, limit, sort_mode, reversed ? "true" : "false", p);
+        }
+        buf_appends(&pg, "</div></div>\n");
+    }
+
+    buf_appends(&pg, "</div>\n</body></html>\n");
+    send_html(fd, pg.data, pg.len);
+    buf_free(&pg);
+    free(indices);
+}
+
 /* ── API: /api/search ───────────────────────────────────────────────── */
 static void handle_api_search(int fd, const char *query_str) {
     char q[MAX_PATH_LEN];
@@ -2577,6 +2750,12 @@ static void handle_request(int fd) {
             strncpy(abs_path, fpath, sizeof(abs_path) - 1);
         }
         serve_file(fd, abs_path, req.range_header);
+        return;
+    }
+
+    /* Route: /search?q=... */
+    if (strcmp(path, "/search") == 0) {
+        handle_search_page(fd, req.query);
         return;
     }
 
