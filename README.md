@@ -144,7 +144,7 @@ minvader is a single-process HTTP server. On startup it loads file paths either 
 
 Tags are stored as macOS extended attributes (xattr) where available, and always written through to the SQLite cache DB for portability. On platforms without xattr (Linux, Windows, older macOS), the cache DB is the sole tag store.
 
-The web UI is generated server-side as HTML — no JavaScript framework, no build step, no CDN dependencies. It works in any browser, including Safari 5 on Snow Leopard.
+The web UI is generated server-side as HTML — no JavaScript framework, no build step, no CDN dependencies.
 
 ### Third-party code
 
