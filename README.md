@@ -28,6 +28,26 @@ dir /s /b C:\Photos | minvader.exe --stdin --port=9090
 
 Then open `http://localhost:9090` in your browser.
 
+### Recommended Browsers (macOS)
+
+The author recommends these browsers based on testing across vintage and modern macOS:
+
+| macOS version | Browser |
+|---------------|---------|
+| 10.6 Snow Leopard | [Power Fox](https://github.com/nickcalyx/nickcalyx.github.io/wiki/PowerFox) |
+| 10.11 El Capitan – 10.15 Catalina | [Mommijii-Stable](https://nickcalyx.github.io/nickcalyx.github.io/) |
+| 11 Big Sur+ | [Waterfox](https://www.waterfox.net/) |
+
+Any browser should work — the UI is server-rendered HTML with minimal JS and no framework dependencies. It may run fine in browsers going back a decade or more.
+
+### Tested Scale
+
+| Hardware | Files | Notes |
+|----------|-------|-------|
+| 2009 MacBook, spinning disk, Snow Leopard | ~500,000 | No issues |
+| 2014 Mac Mini, El Capitan, 16GB RAM | ~4,000,000 | No issues |
+| M4 Mac Mini (local workstation) | 10,500,000 | No issues |
+
 ### Warm Restart
 
 When you load files with `--stdin`, minvader creates a cache database at `~/.minvader/cache-PORT.db`. Tags you add during the session are saved there. Next time, skip the scan:
