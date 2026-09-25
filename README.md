@@ -42,11 +42,13 @@ Any browser should work — the UI is server-rendered HTML with minimal JS and n
 
 ### Tested Scale
 
-| Hardware | Files | Notes |
-|----------|-------|-------|
-| 2008 MacBook, spinning disk, 2GB RAM, Snow Leopard | ~500,000 | No issues |
-| 2014 Mac Mini, El Capitan, 16GB RAM | ~4,000,000 | No issues |
-| M4 Mac Mini, 48GB RAM | 10,500,000 | No issues |
+| Hardware | OS | Browser | Files | Notes |
+|----------|----|---------|-------|-------|
+| 2008 MacBook, spinning disk, 2GB RAM | Snow Leopard | Power Fox | ~500,000 | No issues |
+| 2014 Mac Mini, 16GB RAM | El Capitan | Momiji-Stable | ~4,000,000 | No issues |
+| M4 Mac Mini, 48GB RAM | macOS Sequoia | Waterfox | 10,500,000 | No issues |
+| 6-core Xeon Mac Pro, 32GB RAM (VMware) | Windows 10 | Chromium | — | No issues |
+| Ryzen 9, 32GB RAM | Debian Trixie | Waterfox | — | No issues |
 
 ### Warm Restart
 
