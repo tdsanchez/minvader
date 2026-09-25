@@ -68,7 +68,7 @@ Native GUI launchers are included for macOS (Cocoa) and Windows (Win32). They pr
 ## Features
 
 - **Gallery view** with thumbnail grid, category/tag sidebar, sorting, pagination
-- **Single file viewer** with keyboard navigation, zoom, fullscreen
+- **Single file viewer** with keyboard navigation, zoom
 - **Tagging** — add/remove tags per file, persisted to SQLite cache DB
 - **Tag hints** — autocomplete from existing tags as you type
 - **Random mode** — press N to jump to a random file in the current category
@@ -89,7 +89,6 @@ Native GUI launchers are included for macOS (Cocoa) and Windows (Win32). They pr
 | L | Add heart tag |
 | S | Toggle slideshow |
 | Z | Toggle zoom (images) |
-| F | Fullscreen |
 | X | Delete (move to Trash) |
 | R | Reveal in Finder |
 | D | Download |
