@@ -77,7 +77,7 @@ Native GUI launchers are included for macOS (Cocoa) and Windows (Win32). They pr
 - **Random mode** — press N to jump to a random file in the current category
 - **Slideshow** — press S for auto-advancing slideshow with progress bar
 - **Markdown rendering** — .md files rendered inline with full formatting
-- **Search** — filename search across all loaded files
+- **Search** — search by tag across all loaded files
 - **Delete** — move files to Trash (macOS) with X key. Windows/Linux deletion is a planned feature; use Reveal (R key) and delete natively as a workaround. minvader is not capable of batch deletions by policy and design.
 
 
