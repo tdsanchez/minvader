@@ -44,9 +44,9 @@ Any browser should work — the UI is server-rendered HTML with minimal JS and n
 
 | Hardware | Files | Notes |
 |----------|-------|-------|
-| 2009 MacBook, spinning disk, Snow Leopard | ~500,000 | No issues |
+| 2008 MacBook, spinning disk, 2GB RAM, Snow Leopard | ~500,000 | No issues |
 | 2014 Mac Mini, El Capitan, 16GB RAM | ~4,000,000 | No issues |
-| M4 Mac Mini (local workstation) | 10,500,000 | No issues |
+| M4 Mac Mini, 48GB RAM | 10,500,000 | No issues |
 
 ### Warm Restart
 
