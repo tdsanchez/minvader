@@ -43,6 +43,9 @@ The author recommends these browsers based on testing across vintage and modern 
 
 Any browser should work — the UI is server-rendered HTML with minimal JS and no framework dependencies. It may run fine in browsers going back a decade or more.
 
+<p align="center"><img src="not_today.jpg" width="800" alt="minvader (L) and PostMac media-server (R)"></p>
+<p align="center"><em>minvader (L) and PostMac media-server (R)</em></p>
+
 ### Tested Scale
 
 | Hardware | OS | Browser | Files | Notes |
